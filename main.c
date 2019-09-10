@@ -218,6 +218,32 @@ void book_travel(const list_t travels, const list_t drivers) {
 }
 
 
+void mod_driver(const list_t drivers) {
+	int id;
+	struct driver *drv = NULL;
+
+	print_drivers(drivers);
+
+	do {
+		id = get_int_input("Scrivi l'ID del guidatore da modificare\n>>> ");
+		drv = get_driver_by_id(drivers, id);
+
+		if (drv == NULL)
+			puts("Nessun guidatore corrisponde all'ID :/");
+
+	} while (drv == NULL);
+
+	free(drv->name);
+	free(drv->vehicle);
+	drv->name = new_string_input("Scrivi il nuovo nome del guidatore\n>>> ");
+	drv->age = get_int_input("Scrivi l'età del guidatore\n>>> ");
+	drv->vehicle = new_string_input("Scrivi il veicolo del guidatore\n>>> ");
+
+	update_drivers_file(drivers);
+	print_drivers(drivers);
+}
+
+
 list_t get_new_driver(const list_t drivers) {
 	char buf[128];
 	size_t len;
@@ -296,6 +322,9 @@ int main(void) {
 				break;
 
 			case MOD_DRIVER:
+				mod_driver(drivers);
+				break;
+
 			case DEL_DRIVER:
 
 			case ADD_TRAVEL:
