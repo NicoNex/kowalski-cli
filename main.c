@@ -3,7 +3,9 @@
  * Copyright (C) 2019  Nicolò Santamaria
  */
 
+#define _GNU_SOURCE
 #define _XOPEN_SOURCE
+
 #include <time.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -67,8 +69,7 @@ void print_travels(const list_t node, const list_t drivers) {
 	print_travels(NEXT(node), drivers);
 }
 
-
-// TODO: fix the segfault here
+// Displays the drivers with the highest rating in a list.
 void print_best_drivers(const list_t drivers) {
 	list_t best_drivers = NULL;
 	int hrt = 0;
@@ -90,11 +91,7 @@ void print_best_drivers(const list_t drivers) {
 	}
 
 	print_drivers(best_drivers);
-
-	#pragma omp parallel
-	{
-		dispose_list(best_drivers);
-	}
+	dispose_list(best_drivers);
 }
 
 
@@ -105,6 +102,31 @@ int get_int_input(char *txt) {
 	fgets(buf, 64, stdin);
 
 	return strtol(buf, NULL, 10);
+}
+
+
+void get_str_input(char *msg, char *dest, int n) {
+	fputs(msg, stdout);
+	fgets(dest, n, stdin);
+}
+
+
+char *new_string_input(char *msg) {
+	char buf[512];
+	size_t ln;
+	char *str;
+
+	get_str_input(msg, buf, 512);
+	ln = strlen(buf) - 1;
+
+	if (buf[ln] == '\n')
+		buf[ln] = '\0';
+
+	ln++;
+	str = malloc(ln);
+	strncpy(str, buf, ln);
+
+	return str;
 }
 
 
@@ -138,30 +160,95 @@ void rate_driver(const list_t drivers) {
 	} while (rating < 1 || rating > 10);
 
 	drv->rating = rating;
+	update_drivers_file(drivers);
+}
 
-	#pragma omp parallel
-	{
-		update_drivers_file(drivers);
+// FIXME
+void search_travels(const list_t travels, const list_t drivers) {
+	int seats;
+	char text[32];
+	list_t matches = NULL;
+
+	get_str_input("Cosa vuoi cercare?\n>>> ", text, 32);
+	seats = get_int_input("Quanti posti cerchi?\n>>> ");
+
+	for (list_t node = travels; node; node = NEXT(node)) {
+		struct travel *trv = GET_OBJ(node);
+
+		// apparently the strcasestr returns always NULL wtf
+		if (strcasestr(trv->destination, text) && trv->seats >= seats)
+			matches = list_add(matches, trv);
 	}
+
+	matches ? print_travels(travels, drivers) : puts("Nessun viaggio corrisponde alla ricerca :(\n");
+}
+
+
+void book_travel(const list_t travels, const list_t drivers) {
+	int id;
+	int seats;
+	struct travel *trv = NULL;
+
+	print_travels(travels, drivers);
+
+	do {
+		id = get_int_input("Scrivi l'ID del viaggio da prenotare\n>>> ");
+		trv = get_travel_by_id(travels, id);
+
+		if (trv == NULL)
+			puts("Nessun viaggio corrisponde all'ID :(\n");
+
+	} while (trv == NULL);
+
+
+	char text[64];
+	snprintf(text, 64, "Scrivi il numero di posti da prenotare (max %d)\n>>> ", trv->seats);
+
+	do {
+		seats = get_int_input(text);
+
+		if (seats < 1 || seats > trv->seats)
+			puts("\nNumero di posti non valido :/");
+
+	} while (seats < 1 || seats > trv->seats);
+
+	trv->seats -= seats;
+	print_travels(travels, drivers);
+	update_travels_file(travels);
+}
+
+
+list_t get_new_driver(const list_t drivers) {
+	char buf[128];
+	size_t len;
+	struct driver *drv = malloc(sizeof(struct driver));
+
+	drv->token = time(NULL);
+	drv->name = new_string_input("Immetti il nome del nuovo guidatore\n>>> ");
+	drv->age = get_int_input("Immetti l'età del nuovo guidatore\n>>> ");
+	drv->vehicle = new_string_input("Immetti il veicolo usato dal guidatore\n>>> ");
+	drv->rating = 0;
+
+	return add_driver(drivers, drv);
 }
 
 
 void print_menu() {
 
 	char *txt = "Menu\n\
-	0. Esci\n\n\
-	1. Mostra i guidatori\n\
-	2. Mostra i viaggi\n\
-	3. Valuta un guidatore\n\
-	4. Migliori guidatori\n\
-	5. Cerca tra i viaggi\n\
-	6. Prenota un viaggio\n\n\
-	7. Aggiungi un guidatore\n\
-	8. Modifica un guidatore\n\
-	9. Cancella un guidatore\n\n\
-	10. Aggiungi un viaggio\n\
-	11. Modifica un viaggio\n\
-	12. Cancella un viaggio\n\n";
+    0. Esci\n\n\
+    1. Mostra i guidatori\n\
+    2. Mostra i viaggi\n\
+    3. Valuta un guidatore\n\n\
+    4. Migliori guidatori\n\
+    5. Cerca tra i viaggi\n\
+    6. Prenota un viaggio\n\n\
+    7. Aggiungi un guidatore\n\
+    8. Modifica un guidatore\n\
+    9. Cancella un guidatore\n\n\
+    10. Aggiungi un viaggio\n\
+    11. Modifica un viaggio\n\
+    12. Cancella un viaggio\n\n";
 
 	fputs(txt, stdout);
 }
@@ -196,10 +283,21 @@ int main(void) {
 				break;
 
 			case SEARCH_TRAVEL:
+				search_travels(travels, drivers);
+				break;
+
 			case BOOK_TRAVEL:
+				book_travel(travels, drivers);
+				break;
+
 			case ADD_DRIVER:
+				drivers = get_new_driver(drivers);
+				print_drivers(drivers);
+				break;
+
 			case MOD_DRIVER:
 			case DEL_DRIVER:
+
 			case ADD_TRAVEL:
 			case MOD_TRAVEL:
 			case DEL_TRAVEL:
@@ -210,7 +308,6 @@ int main(void) {
 		}
 
 	}
-
 
 	return 0;
 }

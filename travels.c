@@ -183,7 +183,7 @@ list_t del_travels_with_token(list_t node, const int64_t token) {
 }
 
 
-struct travel *get_travel(list_t node, const int id) {
+struct travel *get_travel_by_id(list_t node, const int id) {
 	if (node == NULL)
 		return NULL;
 
@@ -191,7 +191,7 @@ struct travel *get_travel(list_t node, const int id) {
 	if (trv->id == id)
 		return trv;
 
-	return get_travel(NEXT(node), id);
+	return get_travel_by_id(NEXT(node), id);
 }
 
 

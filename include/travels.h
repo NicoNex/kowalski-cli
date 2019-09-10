@@ -31,7 +31,7 @@ list_t load_travels();
 
 
 // Returns the pointer to the struct travel in the list.
-struct travel *get_travel(list_t travels, const int id);
+struct travel *get_travel_by_id(list_t travels, const int id);
 
 
 // Adds a travel to the travels list and returns it's head.
