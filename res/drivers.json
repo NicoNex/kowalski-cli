@@ -1,0 +1,20 @@
+{
+  "drivers":[
+    {
+      "id":1,
+      "name":"Nicolò",
+      "age":21,
+      "vehicle":"Tesla Roadster",
+      "rating":9,
+      "token":1565954476
+    },
+    {
+      "id":2,
+      "name":"Stegosandro",
+      "age":24,
+      "vehicle":"Twingo",
+      "rating":9,
+      "token":1565954484
+    }
+  ]
+}
