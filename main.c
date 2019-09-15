@@ -105,6 +105,16 @@ int get_int_input(char *txt) {
 }
 
 
+float get_float_input(char *txt) {
+	char buf[32];
+
+	fputs(txt, stdout);
+	fgets(buf, 32, stdin);
+
+	return strtof(buf, NULL);
+}
+
+
 void get_str_input(char *msg, char *dest, int n) {
 	fputs(msg, stdout);
 	fgets(dest, n, stdin);
@@ -226,16 +236,14 @@ void mod_driver(const list_t drivers) {
 	print_drivers(drivers);
 
 	do {
-		id = get_int_input("Scrivi l'ID del guidatore da modificare\n>>> ");
-		drv = get_driver_by_id(drivers, id);
-
+		id = get_int_input("Scrivi l'ID del guidatore da modificare o 0 per annullare\n>>> ");
 		if (id == 0) {
 			puts("Azione annullata");
 			return;
 		}
 
-		if (drv == NULL)
-			puts("Nessun guidatore corrisponde all'ID :/");
+		drv = get_driver_by_id(drivers, id);
+		if (!drv) puts("Nessun guidatore corrisponde all'ID :/");
 
 	} while (drv == NULL);
 
@@ -252,8 +260,6 @@ void mod_driver(const list_t drivers) {
 
 // This function adds a new driver to a list and returns its head.
 list_t get_new_driver(const list_t drivers) {
-	char buf[128];
-	size_t len;
 	struct driver *drv = malloc(sizeof(struct driver));
 
 	drv->token = time(NULL);
@@ -275,15 +281,13 @@ list_t delete_driver(const list_t drivers) {
 
 	do {
 		id = get_int_input("Scrivi l'ID del guidatore da cancellare o 0 per annullare\n>>> ");
-		drv = get_driver_by_id(drivers, id);
-
 		if (id == 0) {
 			puts("Azione annullata");
 			return drivers;
 		}
 
-		if (drv == NULL)
-			puts("Nessun guidatore corrisponde all'ID :/");
+		drv = get_driver_by_id(drivers, id);
+		if (!drv) puts("Nessun guidatore corrisponde all'ID :/");
 
 	} while (drv == NULL);
 
@@ -307,6 +311,72 @@ list_t delete_driver(const list_t drivers) {
 	}
 
 	return drivers;
+}
+
+
+static char *get_date() {
+	char buf[16];
+	time_t epoch;
+	struct tm tm;
+
+	memset(&tm, 0, sizeof(struct tm));
+	get_str_input("Scrivi la data del viaggio nel formato GG-MM-AAAA\n>>> ", buf, 16);
+	strptime(buf, "%d-%m-%Y", &tm);
+	epoch = mktime(&tm);
+
+	if (epoch < time(NULL)) {
+		puts("Data non valida");
+		return get_date();
+	}
+
+	size_t len = strlen(buf) + 1;
+	char *str = malloc(len);
+	memcpy(src, buf, len);
+
+	return str;
+}
+
+
+list_t get_new_travel(const list_t travels, const list_t drivers) {
+	struct travel *trv = malloc(sizeof(struct travel));
+	struct driver *drv;
+
+	puts("Per prima cosa scrivi l'ID del guidatore collegato al viaggio");
+	drv = ask_driver(drivers);
+	trv->token = drv->token;
+	trv->destination = new_string_input("Scrivi la destinazione del viaggio\n>>> ");
+	trv->date = get_date();
+	trv->seats = get_int_input("Scrivi i numero di posti disponibili\n>>> ");
+	trv->price = get_float_input("Scrivi il prezzo del viaggio\n>>> ");
+
+	return add_travel(travels, trv);
+}
+
+
+void mod_travel(const list_t travels) {
+	int id;
+	struct travel *trv = NULL;
+
+	do {
+		id = get_int_input("Scrivi l'ID del viaggio da modificare o 0 per annullare\n>>> ");
+		if (id == 0) {
+			puts("Azione annullata");
+			return;
+		}
+
+		drv = get_travel_by_id(travels, id);
+		if (!drv) puts("Nessun viaggio corrisponde all'ID");
+
+	} while (trv == NULL);
+
+	free(trv->date);
+	free(trv->destination);
+	trv->destination = new_string_input("Scrivi la destinazione del viaggio\n>>> ");
+	trv->date = get_date();
+	trv->seats = get_int_input("Scrivi i numero di posti disponibili\n>>> ");
+	trv->price = get_float_input("Scrivi il prezzo del viaggio\n>>> ");
+
+	update_travels_file(travels);
 }
 
 
@@ -381,10 +451,14 @@ int main(void) {
 				break;
 
 			case ADD_TRAVEL:
-				// coming soon
+				travels = get_new_travel(travels, drivers);
+				print_travels(travels, drivers);
+				break;
 
 			case MOD_TRAVEL:
-				// coming soon
+				mod_travel(travels);
+				print_travels(travels, drivers);
+				break;
 
 			case DEL_TRAVEL:
 				// coming soon
