@@ -218,6 +218,7 @@ void book_travel(const list_t travels, const list_t drivers) {
 }
 
 
+// This function modifies a driver in a list.
 void mod_driver(const list_t drivers) {
 	int id;
 	struct driver *drv = NULL;
@@ -227,6 +228,11 @@ void mod_driver(const list_t drivers) {
 	do {
 		id = get_int_input("Scrivi l'ID del guidatore da modificare\n>>> ");
 		drv = get_driver_by_id(drivers, id);
+
+		if (id == 0) {
+			puts("Azione annullata");
+			return;
+		}
 
 		if (drv == NULL)
 			puts("Nessun guidatore corrisponde all'ID :/");
@@ -244,6 +250,7 @@ void mod_driver(const list_t drivers) {
 }
 
 
+// This function adds a new driver to a list and returns its head.
 list_t get_new_driver(const list_t drivers) {
 	char buf[128];
 	size_t len;
@@ -256,6 +263,50 @@ list_t get_new_driver(const list_t drivers) {
 	drv->rating = 0;
 
 	return add_driver(drivers, drv);
+}
+
+
+// This function deletes a driver from a list and returns its head.
+list_t delete_driver(const list_t drivers) {
+	int id;
+	struct driver *drv = NULL;
+
+	print_drivers(drivers);
+
+	do {
+		id = get_int_input("Scrivi l'ID del guidatore da cancellare o 0 per annullare\n>>> ");
+		drv = get_driver_by_id(drivers, id);
+
+		if (id == 0) {
+			puts("Azione annullata");
+			return drivers;
+		}
+
+		if (drv == NULL)
+			puts("Nessun guidatore corrisponde all'ID :/");
+
+	} while (drv == NULL);
+
+	char ans;
+	char txt[80];
+	snprintf(txt, 80, "Sicuro di voler rimuovere %s dal sistema? [S/n]\n>>> ", drv->name);
+
+	do {
+		get_str_input(txt, &ans, 1);
+		ans = tolower(ans);
+
+		puts(&ans); // DEBUG
+
+	} while (ans != 's' && ans != 'n');
+
+	switch (ans) {
+		case 's':
+			return del_driver(drivers, id);
+		case 'n':
+			return drivers;
+	}
+
+	return drivers;
 }
 
 
@@ -326,14 +377,21 @@ int main(void) {
 				break;
 
 			case DEL_DRIVER:
+				delete_driver(drivers);
+				break;
 
 			case ADD_TRAVEL:
+				// coming soon
+
 			case MOD_TRAVEL:
+				// coming soon
+
 			case DEL_TRAVEL:
+				// coming soon
+
 
 			default:
 				puts("Scelta non valida");
-				continue;
 		}
 
 	}
