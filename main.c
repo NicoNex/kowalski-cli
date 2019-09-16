@@ -121,6 +121,12 @@ void get_str_input(char *msg, char *dest, int n) {
 }
 
 
+char get_char_input(char *msg) {
+	fputs(msg, stdout);
+	return getchar();
+}
+
+
 char *new_string_input(char *msg) {
 	char buf[512];
 	size_t ln;
@@ -223,6 +229,7 @@ void book_travel(const list_t travels, const list_t drivers) {
 	} while (seats < 1 || seats > trv->seats);
 
 	trv->seats -= seats;
+	puts("Viaggio prenotato!");
 	print_travels(travels, drivers);
 	update_travels_file(travels);
 }
@@ -291,16 +298,14 @@ list_t delete_driver(const list_t drivers) {
 
 	} while (drv == NULL);
 
-	char ans;
+	char ans = '\0';
 	char txt[80];
 	snprintf(txt, 80, "Sicuro di voler rimuovere %s dal sistema? [S/n]\n>>> ", drv->name);
 
+
 	do {
-		get_str_input(txt, &ans, 1);
+		ans = get_char_input(txt);
 		ans = tolower(ans);
-
-		puts(&ans); // DEBUG
-
 	} while (ans != 's' && ans != 'n');
 
 	switch (ans) {
@@ -329,9 +334,10 @@ static char *get_date() {
 		return get_date();
 	}
 
-	size_t len = strlen(buf) + 1;
+	size_t len = strlen(buf) - 1;
+	buf[len++] = '\0';
 	char *str = malloc(len);
-	memcpy(src, buf, len);
+	memcpy(str, buf, len);
 
 	return str;
 }
@@ -364,8 +370,8 @@ void mod_travel(const list_t travels) {
 			return;
 		}
 
-		drv = get_travel_by_id(travels, id);
-		if (!drv) puts("Nessun viaggio corrisponde all'ID");
+		trv = get_travel_by_id(travels, id);
+		if (!trv) puts("Nessun viaggio corrisponde all'ID");
 
 	} while (trv == NULL);
 
@@ -377,6 +383,43 @@ void mod_travel(const list_t travels) {
 	trv->price = get_float_input("Scrivi il prezzo del viaggio\n>>> ");
 
 	update_travels_file(travels);
+}
+
+
+list_t delete_travel(const list_t travels) {
+	int id;
+	struct travel *trv = NULL;
+
+	do {
+		id = get_int_input("Scrivi l'ID del viaggio da cancellare o 0 per annullare\n>>> ");
+
+		if (!id)
+			return travels;
+
+		trv = get_travel_by_id(travels, id);
+
+		if (!trv)
+			puts("Nessun viaggio corrisponde all'ID");
+
+	} while (trv == NULL);
+
+	char ans = '\0';
+	char txt[80];
+	snprintf(txt, 80, "Sicuro di voler rimuovere la destinazione %s dal sistema? [S/n]\n>>> ", trv->destination);
+
+	do {
+		ans = get_char_input(txt);
+		ans = tolower(ans);
+	} while (ans != 's' && ans != 'n');
+
+	switch (ans) {
+		case 's':
+			return del_travel(travels, id);
+		case 'n':
+			return travels;
+	}
+
+	return travels;
 }
 
 
@@ -446,8 +489,11 @@ int main(void) {
 				mod_driver(drivers);
 				break;
 
+			// BUG: the program exits after this.
 			case DEL_DRIVER:
+				print_drivers(drivers);
 				delete_driver(drivers);
+				print_drivers(drivers);
 				break;
 
 			case ADD_TRAVEL:
@@ -460,8 +506,12 @@ int main(void) {
 				print_travels(travels, drivers);
 				break;
 
+			// BUG: SEGFAULT after this, I need to investigate...
 			case DEL_TRAVEL:
-				// coming soon
+				print_travels(travels, drivers);
+				delete_travel(travels);
+				print_travels(travels, drivers);
+				break;
 
 
 			default:
