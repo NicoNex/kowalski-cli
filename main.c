@@ -95,6 +95,8 @@ void print_best_drivers(const list_t drivers) {
 }
 
 
+// This function prints a string given in input
+// and returns an int from stdin.
 int get_int_input(char *txt) {
 	char buf[64];
 
@@ -104,7 +106,7 @@ int get_int_input(char *txt) {
 	return strtol(buf, NULL, 10);
 }
 
-
+// Same as get_int_input but returns a float.
 float get_float_input(char *txt) {
 	char buf[32];
 
@@ -114,19 +116,25 @@ float get_float_input(char *txt) {
 	return strtof(buf, NULL);
 }
 
-
+// Prints msg to stdout and writes n bytes read from
+// stdin in dest.
 void get_str_input(char *msg, char *dest, int n) {
 	fputs(msg, stdout);
 	fgets(dest, n, stdin);
 }
 
-
+// Prints msg and returns one character read from stdin.
 char get_char_input(char *msg) {
+	char c;
+
 	fputs(msg, stdout);
-	return getchar();
+	c = getchar();
+	while (getchar() != '\n');
+	return c;
 }
 
-
+// This function prints msg and returns the pointer
+// to a newly allocated string read from stdin.
 char *new_string_input(char *msg) {
 	char buf[512];
 	size_t ln;
@@ -146,7 +154,7 @@ char *new_string_input(char *msg) {
 }
 
 
-struct driver *ask_driver(const list_t drivers) {
+static struct driver *ask_driver(const list_t drivers) {
 	int id;
 
 	print_drivers(drivers);
@@ -179,24 +187,33 @@ void rate_driver(const list_t drivers) {
 	update_drivers_file(drivers);
 }
 
-// FIXME
+// Sets all the characters in a string to lowercase recursively.
+static void lower(char *c) {
+	if (*c) {
+		*c = tolower(*c);
+		lower(++c);
+	}
+}
+
+// This function searches travels whose destination contains a
+// string read from stdin.
 void search_travels(const list_t travels, const list_t drivers) {
 	int seats;
 	char text[32];
 	list_t matches = NULL;
 
 	get_str_input("Cosa vuoi cercare?\n>>> ", text, 32);
+	text[strlen(text)-1] = '\0';
 	seats = get_int_input("Quanti posti cerchi?\n>>> ");
 
 	for (list_t node = travels; node; node = NEXT(node)) {
 		struct travel *trv = GET_OBJ(node);
 
-		// apparently the strcasestr returns always NULL wtf
 		if (strcasestr(trv->destination, text) && trv->seats >= seats)
 			matches = list_add(matches, trv);
 	}
 
-	matches ? print_travels(travels, drivers) : puts("Nessun viaggio corrisponde alla ricerca :(\n");
+	matches ? print_travels(matches, drivers) : puts("Nessun viaggio corrisponde alla ricerca :(\n");
 }
 
 
@@ -309,6 +326,7 @@ list_t delete_driver(const list_t drivers) {
 	} while (ans != 's' && ans != 'n');
 
 	switch (ans) {
+		case '\n':
 		case 's':
 			return del_driver(drivers, id);
 		case 'n':
@@ -318,7 +336,8 @@ list_t delete_driver(const list_t drivers) {
 	return drivers;
 }
 
-
+// This function asks the user the date and returns
+// it as a string with format DD-MM-YYYY.
 static char *get_date() {
 	char buf[16];
 	time_t epoch;
@@ -342,7 +361,9 @@ static char *get_date() {
 	return str;
 }
 
-
+// This function is responsible for the I/O with the user
+// in the case the user wants to add a new travel, returns
+// the head of the list.
 list_t get_new_travel(const list_t travels, const list_t drivers) {
 	struct travel *trv = malloc(sizeof(struct travel));
 	struct driver *drv;
@@ -358,7 +379,8 @@ list_t get_new_travel(const list_t travels, const list_t drivers) {
 	return add_travel(travels, trv);
 }
 
-
+// This function is responsible for the I/O with the user
+// in case of travel editing.
 void mod_travel(const list_t travels) {
 	int id;
 	struct travel *trv = NULL;
@@ -385,7 +407,8 @@ void mod_travel(const list_t travels) {
 	update_travels_file(travels);
 }
 
-
+// This function is responsible for the I/O with the user
+// in case of travel deletion and returns the head of the list.
 list_t delete_travel(const list_t travels) {
 	int id;
 	struct travel *trv = NULL;
@@ -413,6 +436,7 @@ list_t delete_travel(const list_t travels) {
 	} while (ans != 's' && ans != 'n');
 
 	switch (ans) {
+		case '\n':
 		case 's':
 			return del_travel(travels, id);
 		case 'n':
@@ -422,7 +446,7 @@ list_t delete_travel(const list_t travels) {
 	return travels;
 }
 
-
+// This function is responsible for printing the menu.
 void print_menu() {
 
 	char *txt = "Menu\n\
@@ -448,13 +472,14 @@ int main(void) {
 	list_t drivers = load_drivers();
 	list_t travels = load_travels();
 
+	// This is a finite state automata.
 	for (;;) {
 		print_menu();
 		int choice = get_int_input(">>> ");
 
 		switch (choice) {
 			case QUIT:
-				exit(0);
+				return 0;
 
 			case PRINT_DRIVERS:
 				print_drivers(drivers);
@@ -489,10 +514,8 @@ int main(void) {
 				mod_driver(drivers);
 				break;
 
-			// BUG: the program exits after this.
 			case DEL_DRIVER:
-				print_drivers(drivers);
-				delete_driver(drivers);
+				travels = delete_driver(drivers);
 				print_drivers(drivers);
 				break;
 
@@ -506,18 +529,15 @@ int main(void) {
 				print_travels(travels, drivers);
 				break;
 
-			// BUG: SEGFAULT after this, I need to investigate...
 			case DEL_TRAVEL:
 				print_travels(travels, drivers);
-				delete_travel(travels);
+				travels = delete_travel(travels);
 				print_travels(travels, drivers);
 				break;
-
 
 			default:
 				puts("Scelta non valida");
 		}
-
 	}
 
 	return 0;
