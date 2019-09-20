@@ -36,6 +36,11 @@ enum choices {
 	DEL_TRAVEL
 };
 
+enum search_travel_modes {
+	BY_PRICE,
+	BY_RATING
+};
+
 // This function recursively prints all drivers in a list.
 void print_drivers(const list_t node) {
 	if (node == NULL)
@@ -153,7 +158,7 @@ char *new_string_input(char *msg) {
 	return str;
 }
 
-
+// This function asks for a driver to a user and returns the pointer to it.
 static struct driver *ask_driver(const list_t drivers) {
 	int id;
 
@@ -163,7 +168,7 @@ static struct driver *ask_driver(const list_t drivers) {
 	return get_driver_by_id(drivers, id);
 }
 
-
+// This function handles the I/O to rate the driver.
 void rate_driver(const list_t drivers) {
 	int rating;
 	struct driver *drv = ask_driver(drivers);
@@ -195,16 +200,64 @@ static void lower(char *c) {
 	}
 }
 
+// This function sorts the travels list by their prices.
+static void sort_travels_by_price(list_t node) {
+	if (node == NULL)
+		return;
+
+	for (list_t tmp = node; tmp && NEXT(tmp); tmp = NEXT(tmp)) {
+		struct travel *trv = GET_OBJ(tmp);
+		struct travel *ntrv = GET_OBJ(NEXT(tmp));
+
+		if (trv->price > ntrv->price) {
+			tmp->ptr = ntrv;
+			tmp->next->ptr = trv;
+		}
+	}
+
+	sort_travels_by_price(NEXT(node));
+}
+
+// This function sorts the travels list by the driver rating.
+static void sort_travels_by_driver_rating(list_t travels, list_t drivers) {
+	if (travels == NULL)
+		return;
+
+	for (list_t tmp = travels; NEXT(tmp); tmp = NEXT(tmp)) {
+		struct travel *trv = GET_OBJ(tmp);
+		struct travel *ntrv = GET_OBJ(NEXT(tmp));
+
+		struct driver *drv = get_driver_by_token(drivers, trv->token);
+		struct driver *ndrv = get_driver_by_token(drivers, ntrv->token);
+
+		if (drv->rating < ndrv->rating) {
+			tmp->ptr = ntrv;
+			tmp->next->ptr = trv;
+		}
+	}
+
+	sort_travels_by_driver_rating(NEXT(travels), drivers);
+}
+
+
 // This function searches travels whose destination contains a
 // string read from stdin.
 void search_travels(const list_t travels, const list_t drivers) {
 	int seats;
+	char sortmode;
 	char text[32];
 	list_t matches = NULL;
 
 	get_str_input("Cosa vuoi cercare?\n>>> ", text, 32);
 	text[strlen(text)-1] = '\0';
 	seats = get_int_input("Quanti posti cerchi?\n>>> ");
+
+	do {
+		sortmode = get_char_input("Vuoi ordinare l'elenco per prezzo o valutazione del guidatore? [p/v]\n>>> ");
+		if (sortmode != 'p' && sortmode != 'v')
+			puts("Immissione errata, riprova.");
+
+	} while (sortmode != 'p' && sortmode != 'v');
 
 	for (list_t node = travels; node; node = NEXT(node)) {
 		struct travel *trv = GET_OBJ(node);
@@ -213,10 +266,23 @@ void search_travels(const list_t travels, const list_t drivers) {
 			matches = list_add(matches, trv);
 	}
 
-	matches ? print_travels(matches, drivers) : puts("Nessun viaggio corrisponde alla ricerca :(\n");
+	switch (sortmode) {
+		case 'p':
+			sort_travels_by_price(matches);
+			break;
+
+		case 'v':
+			sort_travels_by_driver_rating(matches, drivers);
+			break;
+	}
+
+	if (matches)
+		print_travels(matches, drivers);
+	else
+		puts("Nessun viaggio corrisponde alla ricerca :(\n");
 }
 
-
+// This function handles the I/O to book a travel.
 void book_travel(const list_t travels, const list_t drivers) {
 	int id;
 	int seats;
